@@ -204,7 +204,8 @@ BAD_WORDS_SET: set[str] = {
     "kamina", "kameena", "kameeni",
     "gadha", "gadhe", "ullu",
     "kutte", "kutta", "kutiya",
-    "randi", "r@ndi",
+    "randi", "r@ndi","condom","gondom","gandmra","gandmara",
+    "gandmarn","gandmarni","gandmarnii","gandmarnii",
 }
 
 # Pre-extracted multi-word bad phrases for fast substring scan
