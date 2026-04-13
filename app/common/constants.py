@@ -206,6 +206,9 @@ BAD_WORDS_SET: set[str] = {
     "kutte", "kutta", "kutiya",
     "randi", "r@ndi","condom","gondom","gandmra","gandmara",
     "gandmarn","gandmarni","gandmarnii","gandmarnii",
+    # irrelvant
+    "chadi","underwear","bra","panties","panties","panties",
+    "panties","panties","panties","panties","panties","panties",
 }
 
 # Pre-extracted multi-word bad phrases for fast substring scan
