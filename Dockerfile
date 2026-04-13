@@ -5,9 +5,11 @@ FROM python:3.12-slim AS builder
 
 WORKDIR /build
 
-# Install system deps needed for some Python packages
+# Install system deps needed for building Python packages.
+# gcc + g++     — C/C++ compilation (annoy, greenlet, etc.)
+# python3-dev   — Python headers for C extensions
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends gcc && \
+    apt-get install -y --no-install-recommends gcc g++ python3-dev && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt .
