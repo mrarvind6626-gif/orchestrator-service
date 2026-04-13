@@ -93,7 +93,11 @@ def create_app() -> FastAPI:
         redoc_url="/redoc",
     )
 
+    # ── Custom Middleware ─────────────────────────────────────
+    app.add_middleware(RequestIDMiddleware)
+
     # ── CORS ──────────────────────────────────────────────────
+    # Added last so it executes first (Starlette LIFO)
     app.add_middleware(
         CORSMiddleware,
         allow_origins=settings.cors_origins_list,
@@ -101,9 +105,6 @@ def create_app() -> FastAPI:
         allow_methods=["*"],
         allow_headers=["*"],
     )
-
-    # ── Custom Middleware ─────────────────────────────────────
-    app.add_middleware(RequestIDMiddleware)
 
     # ── Routers ───────────────────────────────────────────────
     app.include_router(v1_router, tags=["Chat"])
