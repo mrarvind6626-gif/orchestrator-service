@@ -30,6 +30,9 @@ COPY --from=builder /install /usr/local
 # Copy application code
 COPY app/ ./app/
 
+# Copy NeMo Guardrails config (Colang flows + model config)
+COPY core/ ./core/
+
 # Ensure the user owns the app directory
 RUN chown -R appuser:appuser /app
 

@@ -102,11 +102,12 @@ async def _init_nemo() -> None:
             # NeMo uses the OpenAI SDK internally.  OpenRouter is OpenAI-compatible,
             # so we set OPENAI_API_KEY / OPENAI_API_BASE from the OpenRouter env vars
             # before NeMo loads — this way no separate OpenAI key is needed.
+            # Force-set (not setdefault) to override any placeholder values in .env.
             openrouter_key = os.getenv("OPENROUTER_API_KEY", "")
             openrouter_url = os.getenv("OPENROUTER_BASE_URL", "https://openrouter.ai/api/v1")
             if openrouter_key:
-                os.environ.setdefault("OPENAI_API_KEY", openrouter_key)
-                os.environ.setdefault("OPENAI_API_BASE", openrouter_url)
+                os.environ["OPENAI_API_KEY"] = openrouter_key
+                os.environ["OPENAI_API_BASE"] = openrouter_url
                 logger.info("nemo_using_openrouter", base_url=openrouter_url)
 
             config = RailsConfig.from_path(_NEMO_CONFIG_PATH)
