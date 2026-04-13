@@ -1,0 +1,41 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# NeMo Guardrails — ACPC Gujarat Chatbot Configuration
+#
+# This file configures the LLM backend and which rails are active.
+# Colang flows (the actual rules) are defined in main.co.
+#
+# Environment variables used:
+#   OPENAI_API_KEY     — Your LLM API key (OpenAI or OpenRouter key)
+#   OPENAI_API_BASE    — Override to use OpenRouter: https://openrouter.ai/api/v1
+#   NEMO_LLM_MODEL     — Override the model (default: gpt-3.5-turbo)
+#
+# Install: pip install nemoguardrails
+# Docs:    https://github.com/NVIDIA/NeMo-Guardrails
+# ─────────────────────────────────────────────────────────────────────────────
+
+models:
+  - type: main
+    engine: openai
+    # OpenRouter model slug — cheap and fast for topicality checking.
+    # openai/gpt-4o-mini is ~10x cheaper than gpt-4o and accurate enough for guardrails.
+    # NeMo will automatically use OPENAI_API_KEY + OPENAI_API_BASE set from
+    # OPENROUTER_API_KEY + OPENROUTER_BASE_URL in your .env (bridged at init time).
+    model: openai/gpt-4o-mini
+
+instructions:
+  - type: general
+    content: |
+      You are the ACPC Gujarat Admissions Assistant. Your ONLY purpose is to
+      help students with ACPC Gujarat admissions — registration, eligibility,
+      merit ranks, choice filling, seat allotment, cut-offs, colleges, fees,
+      documents, and counselling rounds.
+
+      For any question that is NOT related to ACPC Gujarat admissions or
+      higher education in Gujarat, politely decline and redirect the user.
+
+rails:
+  input:
+    flows:
+      - acpc topicality check
+  output:
+    flows: []

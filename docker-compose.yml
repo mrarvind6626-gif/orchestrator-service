@@ -1,0 +1,58 @@
+# ══════════════════════════════════════════════════════════════
+#  Orchestrator Service — Docker Compose
+# ══════════════════════════════════════════════════════════════
+#
+#  Services:
+#    app   — FastAPI application (Uvicorn)
+#    nginx — Reverse proxy on port 80
+#
+#  Logging:
+#    awslogs driver pipes stdout → CloudWatch
+#
+# ══════════════════════════════════════════════════════════════
+
+services:
+  # ── FastAPI Application ───────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: orchestrator-app
+    env_file: .env
+    expose:
+      - "8000"
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-south-1
+        awslogs-group: /orchestrator-service/app
+        awslogs-stream-prefix: app
+        awslogs-create-group: "true"
+    restart: unless-stopped
+    networks:
+      - orchestrator-net
+
+  # ── Nginx Reverse Proxy ───────────────────────────────────
+  nginx:
+    image: nginx:1.27-alpine
+    container_name: orchestrator-nginx
+    ports:
+      - "80:80"
+    volumes:
+      - ./infra/nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - app
+    logging:
+      driver: awslogs
+      options:
+        awslogs-region: ap-south-1
+        awslogs-group: /orchestrator-service/nginx
+        awslogs-stream-prefix: nginx
+        awslogs-create-group: "true"
+    restart: unless-stopped
+    networks:
+      - orchestrator-net
+
+networks:
+  orchestrator-net:
+    driver: bridge
