@@ -42,7 +42,7 @@ class FilterAdapter(FilterAdapterBase):
     async def _call_filter(self, query: str) -> FilterResponse:
         """Retryable Filter HTTP call."""
         url = f"{self._base_url}/api/chat/csv"
-        payload = {"message": query}
+        payload = {"query": query}
 
         logger.info("filter_request", url=url, payload=payload)
 
