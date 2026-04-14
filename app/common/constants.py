@@ -222,17 +222,46 @@ BAD_WORD_RESPONSE: str = (
 )
 
 # ── LLM Prompts ──
-ROUTER_SYSTEM_PROMPT = """You are an intent classifier for a document retrieval system. 
-Analyze the user's query and chat history, then classify the query into exactly ONE of these categories:
+ROUTER_SYSTEM_PROMPT = """You are a specialized query routing agent for a college admissions chatbot. Your task is to analyze the user's input and route it to the correct search system(s) by extracting the specific questions.
 
-- "rag": The user wants to search for information semantically (open-ended questions, concept lookups, general knowledge retrieval).
-- "filter": The user wants to look up specific structured data (filtering by department, rank, record ID, specific fields, exact matches).
-- "hybrid": The user's query requires BOTH semantic search AND structured filtering (e.g., "Show me Rank 2 requirements for the Sales department" needs both semantic understanding and structured filtering).
+DEFINITIONS & ROUTING RULES:
+1. rag_query (Documentation/Semantic Search): 
+   - Use for: Rules, admission procedures, document requirements, eligibility criteria, definitions, and general policies.
+   - Example: "What is the process for round 1?"
 
-Respond with ONLY a JSON object in this exact format:
-{"route": "<rag|filter|hybrid>", "reasoning": "<one sentence explaining your decision>"}
+2. filter_query (Statistical/Structured Search): 
+   - Use for: Queries involving numerical data, historical stats, or specific filtering constraints. 
+   - TRIGGER WORDS: "rank", "cutoff", "closing rank", "merit number", "seats", "fees", "category", "chances of admission".
+   - Example: "What is the cutoff for IT at LD College?"
 
-Do not include any other text outside this JSON."""
+RULES:
+- A user input might require ONLY RAG, ONLY Filter, or BOTH.
+- Rephrase the extracted query to be clear and standalone.
+- If a layer is unnecessary, leave it explicitly null.
+- Output ONLY valid JSON.
+
+EXAMPLES:
+
+User: "What documents do I need for registration?"
+{"rag_query": "What documents are required for registration?", "filter_query": null}
+
+User: "What is the procedure for choice filling during the actual admission round?"
+{"rag_query": "What is the procedure for choice filling during the actual admission round?", "filter_query": null}
+
+User: "What was the closing rank for IT at Nirma University?"
+{"rag_query": null, "filter_query": "closing rank for Information Technology at Nirma University"}
+
+User: "How many management quota seats are there for civil engineering at MSU?"
+{"rag_query": null, "filter_query": "management quota seats for civil engineering at MSU"}
+
+User: "My merit rank is 4500. Can I get CS in DAIICT? Also, how do I pay the token fee?"
+{"rag_query": "How to pay the token fee?", "filter_query": "chances of getting Computer Science in DAIICT with a merit rank of 4500"}
+
+User: "What was the cutoff for AI/ML at GCET last year, and do they have a hostel on campus?"
+{"rag_query": "Does GCET have an on-campus hostel?", "filter_query": "last year cutoff for AI/ML at GCET"}
+
+Return ONLY a JSON response matching exactly this format:
+{"rag_query": "extracted text query or null", "filter_query": "extracted statistical query or null"}"""
 
 SYNTHESIS_SYSTEM_PROMPT = """You are a helpful and conversational assistant. Your job is to take the 
 retrieved data provided to you and synthesize it into a clear, friendly, and accurate response 

@@ -8,7 +8,8 @@ from dataclasses import asdict
 from typing import Any, List
 
 from langgraph.graph import END, START, StateGraph
-
+from app.common.constants import ROUTER_SYSTEM_PROMPT
+from app.common.constants import SYNTHESIS_SYSTEM_PROMPT
 from app.adapters.base import (
     FilterAdapterBase,
     LLMAdapterBase,
@@ -28,19 +29,9 @@ def _build_planner_node(llm: LLMAdapterBase):
         """Analyzes the query and extracts specific sub-queries for RAG and Filter."""
         logger.info("planner_node_start", query=state["current_query"])
         
-        system_prompt = (
-            "You are a sophisticated query planner. Your job is to analyze the user's intent. "
-            "Determine if they need semantic documentation search (RAG) and/or "
-            "structured statistical search (Stats/Filter). "
-            "Extract the exact question for each necessary layer. "
-            "If a layer is unnecessary, leave it null.\n\n"
-            "Return ONLY a JSON response matching exactly this format:\n"
-            '{"rag_query": "extracted text query or null", "filter_query": "extracted statistical or structured query or null"}'
-        )
-        
         try:
             messages = [
-                {"role": "system", "content": system_prompt},
+                {"role": "system", "content": ROUTER_SYSTEM_PROMPT},
                 {"role": "user", "content": state["current_query"]},
             ]
             raw = await llm.chat_completion(messages, temperature=0.0, max_tokens=256)
@@ -128,8 +119,6 @@ def _build_synthesizer_node(llm: LLMAdapterBase):
         """Synthesizes final answers based on aggregated data."""
         if state.get("errors") and not state.get("rag_results") and not state.get("filter_results"):
             return {"synthesized_response": "I'm sorry, I encountered an internal error and couldn't process your request."}
-
-        system_prompt = "You are a helpful assistant. Synthesize the provided data into a single, cohesive answer to the user's original query."
         
         # Build Context String
         context = f"Original Query: {state['current_query']}\n\n"
@@ -147,7 +136,7 @@ def _build_synthesizer_node(llm: LLMAdapterBase):
             context += f"Chat History:\n{history_str}\n"
 
         messages = [
-            {"role": "system", "content": system_prompt},
+            {"role": "system", "content": SYNTHESIS_SYSTEM_PROMPT},
             {"role": "user", "content": context},
         ]
         
