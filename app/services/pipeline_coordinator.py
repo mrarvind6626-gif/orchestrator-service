@@ -99,10 +99,7 @@ class PipelineCoordinator:
                 "Either text_query or audio_file must be provided."
             )
 
-        # ── Step 2: Input Guardrails ──────────────────────────
-        await self._guardrails.validate(text_query)
-
-        # ── Step 3: Fast-Path Check ───────────────────────────
+        # ── Step 2: Fast-Path Check (before guardrails — FAQs are curated) ──
         fast_result = check_fast_path(text_query, language=language or detected_language)
         if fast_result is not None:
             logger.info("fast_path_short_circuit", category=fast_result.category)
@@ -118,6 +115,9 @@ class PipelineCoordinator:
                 execution_path="fast_path",
                 audio_base64=audio_b64,
             )
+
+        # ── Step 3: Input Guardrails (only for non-FAQ queries) ──
+        await self._guardrails.validate(text_query)
 
         # ── Step 4: Fetch Chat History ────────────────────────
         chat_history = await self._repo.get_history(session_id)
