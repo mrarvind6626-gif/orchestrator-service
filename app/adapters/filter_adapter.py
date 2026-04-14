@@ -44,12 +44,21 @@ class FilterAdapter(FilterAdapterBase):
         url = f"{self._base_url}/api/query"
         payload = {"query": query}
 
+        logger.info("filter_request", url=url, payload=payload)
+
         try:
             async with httpx.AsyncClient(timeout=self._timeout) as client:
                 response = await client.post(url, json=payload)
                 response.raise_for_status()
 
             data = response.json()
+            logger.info(
+                "filter_response",
+                status_code=response.status_code,
+                record_count=len(data.get("data", [])),
+                status=data.get("status"),
+            )
+
             records = [
                 FilterRecord(
                     record_id=r.get("record_id", ""),
@@ -67,12 +76,13 @@ class FilterAdapter(FilterAdapterBase):
         except httpx.HTTPStatusError as exc:
             logger.error(
                 "filter_http_error",
+                url=url,
                 status_code=exc.response.status_code,
                 body=exc.response.text[:500],
             )
             raise
         except httpx.TransportError as exc:
-            logger.error("filter_transport_error", error=str(exc))
+            logger.error("filter_transport_error", url=url, error=str(exc))
             raise
         except Exception as exc:
             raise FilterError(f"Unexpected Filter error: {exc}") from exc

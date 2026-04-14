@@ -74,7 +74,7 @@ class RAGAdapterBase(ABC):
     """RAG (Retrieval-Augmented Generation) search adapter interface."""
 
     @abstractmethod
-    async def search(self, query: str) -> RAGResponse:
+    async def search(self, query: str, session_id: str | None = None) -> RAGResponse:
         """Perform semantic vector search."""
         ...
 

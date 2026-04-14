@@ -97,7 +97,7 @@ def _build_rag_node(rag: RAGAdapterBase):
             return {}
             
         try:
-            result = await rag.search(query)
+            result = await rag.search(query, session_id=state.get("session_id"))
             results_dicts = [asdict(r) for r in result.results]
             return {"rag_results": results_dicts}
         except Exception as e:
