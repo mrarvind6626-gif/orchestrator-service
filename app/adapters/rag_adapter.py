@@ -41,7 +41,7 @@ class RAGAdapter(RAGAdapterBase):
     )
     async def _call_rag(self, query: str, session_id: str | None = None) -> RAGResponse:
         """Retryable RAG HTTP call."""
-        url = f"{self._base_url}/api/chat"
+        url = f"{self._base_url}/api/chat/csv"
         payload: dict = {"message": query}
         if session_id:
             payload["session_id"] = session_id
