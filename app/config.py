@@ -42,7 +42,7 @@ class Settings(BaseSettings):
     sarvam_tts_speaker: str = "shubh"
 
     # ── External APIs ─────────────────────────────────────────
-    rag_api_base_url: str = "https://welcometofightclub-acpc-backend-second.hf.space"
+    rag_api_base_url: str = "https://welcometofightclub-acpc-testing-5.hf.space"
     filter_api_base_url: str = "https://orchestrator-production-1d43.up.railway.app"
 
     # ── Upstash Redis ─────────────────────────────────────────

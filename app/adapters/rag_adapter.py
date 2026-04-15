@@ -41,10 +41,11 @@ class RAGAdapter(RAGAdapterBase):
     )
     async def _call_rag(self, query: str, session_id: str | None = None) -> RAGResponse:
         """Retryable RAG HTTP call."""
-        url = f"{self._base_url}/api/chat"
-        payload: dict = {"message": query}
-        if session_id:
-            payload["session_id"] = session_id
+        url = f"{self._base_url}/api/retrieve"
+        payload: dict = {
+            "query": query,
+            "top_k": 5
+        }
 
         logger.info("rag_request", url=url, payload=payload)
 
@@ -57,23 +58,21 @@ class RAGAdapter(RAGAdapterBase):
             logger.info(
                 "rag_response",
                 status_code=response.status_code,
-                answer_preview=str(data.get("answer", ""))[:200],
-                source_count=len(data.get("sources", [])),
-                session_id=data.get("session_id"),
-                confidence=data.get("confidence"),
-                trace_id=data.get("trace_id"),
+                chunk_count=len(data.get("chunks", [])),
             )
 
-            results = [
-                RAGResult(
-                    rank=r.get("rank", 0),
-                    score=r.get("score", 0.0),
-                    file_name=r.get("file_name", ""),
-                    url=r.get("url", ""),
-                    text_preview=r.get("text_preview", ""),
+            results = []
+            for idx, chunk in enumerate(data.get("chunks", []), start=1):
+                meta = chunk.get("metadata", {})
+                results.append(
+                    RAGResult(
+                        rank=idx,
+                        score=chunk.get("score", 0.0),
+                        file_name=meta.get("file_name", ""),
+                        url=meta.get("url", ""),
+                        text_preview=chunk.get("text", ""),
+                    )
                 )
-                for r in data.get("sources", [])
-            ]
 
             logger.info("rag_search_success", result_count=len(results))
             return RAGResponse(status="success", results=results)

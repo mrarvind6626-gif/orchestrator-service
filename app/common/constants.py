@@ -236,7 +236,9 @@ DEFINITIONS & ROUTING RULES:
 
 RULES:
 - A user input might require ONLY RAG, ONLY Filter, or BOTH.
-- Rephrase the extracted query to be clear and standalone.
+- You will be provided with Chat History (if any) and the Current Query.
+- Use the Chat History to understand context, such as resolving pronouns ("it", "they", "that college") or implied topics.
+- The `rag_query` and `filter_query` you output MUST be completely standalone and self-explanatory. Rephrase them to contain all context (e.g., college names, courses) extracted from history.
 - If a layer is unnecessary, leave it explicitly null.
 - Output ONLY valid JSON.
 
@@ -245,20 +247,17 @@ EXAMPLES:
 User: "What documents do I need for registration?"
 {"rag_query": "What documents are required for registration?", "filter_query": null}
 
-User: "What is the procedure for choice filling during the actual admission round?"
-{"rag_query": "What is the procedure for choice filling during the actual admission round?", "filter_query": null}
-
 User: "What was the closing rank for IT at Nirma University?"
 {"rag_query": null, "filter_query": "closing rank for Information Technology at Nirma University"}
-
-User: "How many management quota seats are there for civil engineering at MSU?"
-{"rag_query": null, "filter_query": "management quota seats for civil engineering at MSU"}
 
 User: "My merit rank is 4500. Can I get CS in DAIICT? Also, how do I pay the token fee?"
 {"rag_query": "How to pay the token fee?", "filter_query": "chances of getting Computer Science in DAIICT with a merit rank of 4500"}
 
-User: "What was the cutoff for AI/ML at GCET last year, and do they have a hostel on campus?"
-{"rag_query": "Does GCET have an on-campus hostel?", "filter_query": "last year cutoff for AI/ML at GCET"}
+Chat History:
+User: Tell me about LD College.
+Assistant: LD College of Engineering is a premier institute...
+Current Query: User: "What are its cutoffs for AI?"
+{"rag_query": null, "filter_query": "cutoff for AI at LD College of Engineering"}
 
 Return ONLY a JSON response matching exactly this format:
 {"rag_query": "extracted text query or null", "filter_query": "extracted statistical query or null"}"""
