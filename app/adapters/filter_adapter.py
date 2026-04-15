@@ -29,9 +29,9 @@ class FilterAdapter(FilterAdapterBase):
         self._base_url = settings.filter_api_base_url.rstrip("/")
         self._timeout = httpx.Timeout(30.0, connect=10.0)
 
-    async def search(self, query: str) -> FilterResponse:
+    async def search(self, query: str, session_id: str | None = None) -> FilterResponse:
         """Perform structured NLP search via the Filter API."""
-        return await self._call_filter(query)
+        return await self._call_filter(query, session_id)
 
     @retry(
         retry=retry_if_exception_type((httpx.HTTPStatusError, httpx.TransportError)),
@@ -39,10 +39,12 @@ class FilterAdapter(FilterAdapterBase):
         wait=wait_exponential(multiplier=1, min=1, max=10),
         reraise=True,
     )
-    async def _call_filter(self, query: str) -> FilterResponse:
+    async def _call_filter(self, query: str, session_id: str | None = None) -> FilterResponse:
         """Retryable Filter HTTP call."""
         url = f"{self._base_url}/api/chat/csv"
         payload = {"query": query}
+        if session_id:
+            payload["session_id"] = session_id
 
         logger.info("filter_request", url=url, payload=payload)
 
@@ -56,9 +58,11 @@ class FilterAdapter(FilterAdapterBase):
                 "filter_response",
                 status_code=response.status_code,
                 record_count=len(data.get("data", [])),
+                has_answer=bool(data.get("answer")),
                 status=data.get("status"),
             )
 
+            # ── Handle structured records ({"data": [...]}) ──────
             records = [
                 FilterRecord(
                     record_id=r.get("record_id", ""),
@@ -69,6 +73,21 @@ class FilterAdapter(FilterAdapterBase):
                 )
                 for r in data.get("data", [])
             ]
+
+            # ── Handle pre-synthesized answer ({"answer": "..."}) ─
+            # The filter API may return a ready-made answer string
+            # instead of structured records.  Wrap it as a single
+            # FilterRecord so the downstream synthesizer has context.
+            if not records and data.get("answer"):
+                records = [
+                    FilterRecord(
+                        record_id="filter-answer",
+                        document_name="Filter API",
+                        doc_url="",
+                        summary_text=data["answer"],
+                        match_confidence=1.0,
+                    )
+                ]
 
             logger.info("filter_search_success", record_count=len(records))
             return FilterResponse(status=data.get("status", "success"), data=records)

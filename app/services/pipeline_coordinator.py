@@ -3,13 +3,18 @@ Pipeline Coordinator — the conductor of the entire chat pipeline.
 
 Orchestrates:
     1. Audio → STT (if audio provided)
-    2. Input guardrails (local + semantic)
-    3. Fast-path check (greetings, etc.)
-    4. Chat history retrieval
-    5. LangGraph invocation
-    6. TTS synthesis (audio returned inline as base64)
-    7. Async chat history persistence
+    2. Fast-path check (greetings, FAQ — zero-latency, no LLM)
+    3. Input guardrails (local profanity/injection + moderation API)
+    4. Load chat history from Upstash → convert to structured messages
+    5. LangGraph invocation (Llama Guard → Planner → RAG/Filter → Synthesizer)
+    6. TTS synthesis
+    7. Async history persistence
     8. Response assembly
+
+History is managed explicitly via Upstash REST (the LangGraph Redis
+checkpointer requires Redis Stack / RediSearch which Upstash lacks).
+The coordinator converts stored history into LangChain ``messages``
+so the graph's Llama Guard node sees the full conversation context.
 """
 
 from __future__ import annotations
@@ -17,6 +22,8 @@ from __future__ import annotations
 import asyncio
 import base64
 from dataclasses import dataclass, field
+
+from langchain_core.messages import AIMessage, HumanMessage
 
 from app.adapters.base import STTAdapterBase, TTSAdapterBase
 from app.common.exceptions import AudioValidationError, OrchestratorError
@@ -70,18 +77,6 @@ class PipelineCoordinator:
         language: str | None = None,
         receive_audio: bool = True,
     ) -> PipelineResult:
-        """
-        Run the full chat pipeline.
-
-        Args:
-            session_id:  Client-provided session identifier.
-            text_query:  Text input (mutually exclusive with audio).
-            audio_bytes: Raw audio bytes (mutually exclusive with text).
-            audio_content_type: MIME type of the audio file.
-
-        Returns:
-            PipelineResult with answer, base64 audio, sources, etc.
-        """
         logger.info("pipeline_start", session_id=session_id)
 
         detected_language = None
@@ -92,20 +87,26 @@ class PipelineCoordinator:
             text_query, detected_language = await self._stt.transcribe(
                 audio_bytes, audio_content_type or "audio/webm"
             )
-            logger.info("stt_complete", transcript_preview=text_query[:100], detected_language=detected_language)
+            logger.info(
+                "stt_complete",
+                transcript_preview=text_query[:100],
+                detected_language=detected_language,
+            )
 
         if not text_query:
             raise AudioValidationError(
                 "Either text_query or audio_file must be provided."
             )
 
-        # ── Step 2: Fast-Path Check (before guardrails — FAQs are curated) ──
+        # ── Step 2: Fast-path (curated FAQ / greetings) ───────
         fast_result = check_fast_path(text_query, language=language or detected_language)
         if fast_result is not None:
             logger.info("fast_path_short_circuit", category=fast_result.category)
             audio_b64 = None
             if receive_audio:
-                audio_b64 = await self._process_tts(fast_result.response, session_id, language or detected_language)
+                audio_b64 = await self._process_tts(
+                    fast_result.response, session_id, language or detected_language,
+                )
             asyncio.create_task(
                 self._save_exchange(session_id, text_query, fast_result.response)
             )
@@ -116,21 +117,23 @@ class PipelineCoordinator:
                 audio_base64=audio_b64,
             )
 
-        # ── Step 3: Input Guardrails (only for non-FAQ queries) ──
+        # ── Step 3: Input guardrails ──────────────────────────
         await self._guardrails.validate(text_query)
 
-        # ── Step 4: Fetch Chat History ────────────────────────
+        # ── Step 4: Load history → structured messages ────────
         chat_history = await self._repo.get_history(session_id)
+        messages = _history_to_messages(chat_history)
+        messages.append(HumanMessage(content=text_query))
 
         # ── Step 5: Invoke LangGraph ──────────────────────────
-        initial_state = {
-            "session_id": session_id,
-            "chat_history": chat_history,
-            "current_query": text_query,
-        }
-
+        # The full messages list (history + new query) is passed
+        # so Llama Guard evaluates the complete conversation.
         logger.info("langgraph_invoke_start", session_id=session_id)
-        result_state = await self._graph.ainvoke(initial_state)
+
+        result_state = await self._graph.ainvoke(
+            {"messages": messages, "session_id": session_id},
+        )
+
         logger.info(
             "langgraph_invoke_complete",
             execution_path=result_state.get("execution_path"),
@@ -141,17 +144,19 @@ class PipelineCoordinator:
         sources = result_state.get("sources", [])
         confidence = result_state.get("confidence")
 
-        # ── Step 6: TTS → inline base64 ──────────────────────
+        # ── Step 6: TTS ──────────────────────────────────────
         audio_b64 = None
         if receive_audio:
-            audio_b64 = await self._process_tts(synthesized, session_id, language or detected_language)
+            audio_b64 = await self._process_tts(
+                synthesized, session_id, language or detected_language,
+            )
 
-        # ── Step 7: Async History Persistence ─────────────────
+        # ── Step 7: Async history persistence ─────────────────
         asyncio.create_task(
             self._save_exchange(session_id, text_query, synthesized)
         )
 
-        # ── Step 8: Assemble Response ─────────────────────────
+        # ── Step 8: Assemble response ─────────────────────────
         logger.info("pipeline_complete", session_id=session_id, path=execution_path)
         return PipelineResult(
             answer=synthesized,
@@ -165,14 +170,8 @@ class PipelineCoordinator:
     # ── Private Helpers ───────────────────────────────────────
 
     async def _process_tts(
-        self, text: str, session_id: str, language: str | None = None
+        self, text: str, session_id: str, language: str | None = None,
     ) -> str | None:
-        """
-        Generate TTS audio and return it as a base64-encoded string.
-
-        Audio is always handled in memory — no external storage used.
-        Returns None if TTS fails (non-blocking).
-        """
         try:
             audio_bytes = await self._tts.synthesize(text, language)
         except OrchestratorError:
@@ -184,9 +183,8 @@ class PipelineCoordinator:
         return encoded
 
     async def _save_exchange(
-        self, session_id: str, user_query: str, assistant_response: str
+        self, session_id: str, user_query: str, assistant_response: str,
     ) -> None:
-        """Fire-and-forget: append the user/assistant exchange to history."""
         try:
             messages = [
                 {"role": "user", "content": user_query},
@@ -194,9 +192,21 @@ class PipelineCoordinator:
             ]
             await self._repo.append_history(session_id, messages)
         except Exception as exc:
-            # Never let a history-save failure crash the pipeline
             logger.error(
                 "history_save_failed",
                 session_id=session_id,
                 error=str(exc),
             )
+
+
+def _history_to_messages(history: list[dict]) -> list:
+    """Convert stored chat-history dicts to LangChain message objects."""
+    msgs = []
+    for entry in history:
+        role = entry.get("role", "")
+        content = entry.get("content", "")
+        if role == "user":
+            msgs.append(HumanMessage(content=content))
+        elif role == "assistant":
+            msgs.append(AIMessage(content=content))
+    return msgs

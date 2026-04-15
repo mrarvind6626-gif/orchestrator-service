@@ -7,6 +7,8 @@ Fails fast on startup if required variables are missing.
 
 from __future__ import annotations
 
+from urllib.parse import urlparse
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -23,7 +25,7 @@ class Settings(BaseSettings):
     # ── LLM (OpenRouter) ──────────────────────────────────────
     openrouter_api_key: str
     openrouter_base_url: str = "https://openrouter.ai/api/v1"
-    llm_model: str = "openai/gpt-4o"
+    llm_model: str = "openai/gpt-4o-mini"
     llm_temperature: float = 0.2
     llm_max_tokens: int = 2048
 
@@ -40,12 +42,12 @@ class Settings(BaseSettings):
     sarvam_tts_speaker: str = "shubh"
 
     # ── External APIs ─────────────────────────────────────────
-    rag_api_base_url: str
-    filter_api_base_url: str
+    rag_api_base_url: str = "https://welcometofightclub-acpc-backend-second.hf.space"
+    filter_api_base_url: str = "https://orchestrator-production-1d43.up.railway.app"
 
     # ── Upstash Redis ─────────────────────────────────────────
-    upstash_redis_rest_url: str
-    upstash_redis_rest_token: str
+    upstash_redis_rest_url: str = "https://magical-vulture-85269.upstash.io"
+    upstash_redis_rest_token: str = "gQAAAAAAAU0VAAIncDJhMWQxYTYzOGU4MTk0MWE3YWE3ZTY5Mzk3NjUzNDczMHAyODUyNjk"
 
     # ── Application Tuning ────────────────────────────────────
     chat_history_ttl_minutes: int = 30
@@ -65,6 +67,12 @@ class Settings(BaseSettings):
     @property
     def audio_max_size_bytes(self) -> int:
         return self.audio_max_size_mb * 1024 * 1024
+
+    @property
+    def upstash_redis_url(self) -> str:
+        """Standard Redis URL for the LangGraph checkpointer (derived from REST credentials)."""
+        host = urlparse(self.upstash_redis_rest_url).hostname
+        return f"rediss://default:{self.upstash_redis_rest_token}@{host}:6379"
 
     @property
     def cors_origins_list(self) -> list[str]:

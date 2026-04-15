@@ -83,7 +83,7 @@ class FilterAdapterBase(ABC):
     """Structured filter/NLP search adapter interface."""
 
     @abstractmethod
-    async def search(self, query: str) -> FilterResponse:
+    async def search(self, query: str, session_id: str | None = None) -> FilterResponse:
         """Perform structured database query."""
         ...
 

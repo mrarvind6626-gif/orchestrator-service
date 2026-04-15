@@ -2,8 +2,7 @@
 FastAPI application factory.
 
 Lifespan:
-    On startup  → Initialize all adapters, repositories, graph, and pipeline
-                   as singletons stored in ``app.state``.
+    On startup  → Initialize adapters, repository, graph, and pipeline.
     On shutdown → Clean up resources.
 
 This is the single composition root for the entire application.
@@ -18,7 +17,6 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.adapters.filter_adapter import FilterAdapter
 from app.adapters.llm_adapter import OpenRouterLLMAdapter
-from app.adapters.moderation_adapter import OpenRouterModerationAdapter
 from app.adapters.rag_adapter import RAGAdapter
 from app.adapters.stt_adapter import SarvamSTTAdapter
 from app.adapters.tts_adapter import SarvamTTSAdapter
@@ -42,26 +40,25 @@ async def lifespan(app: FastAPI):
 
     logger.info("startup_begin", log_level=settings.log_level)
 
-    # ── Layer 5: Repository ───────────────────────────────────
+    # ── Repository (Upstash REST — chat history persistence) ──
     repository = UpstashRedisChatHistoryRepository(settings)
 
-    # ── Layer 4: Adapters ─────────────────────────────────────
+    # ── Adapters ──────────────────────────────────────────────
     stt_adapter = SarvamSTTAdapter(settings)
     tts_adapter = SarvamTTSAdapter(settings)
     rag_adapter = RAGAdapter(settings)
     filter_adapter = FilterAdapter(settings)
     llm_adapter = OpenRouterLLMAdapter(settings)
-    moderation_adapter = OpenRouterModerationAdapter(settings)
 
-    # ── Layer 3: LangGraph ────────────────────────────────────
+    # ── LangGraph (Guard → Planner → RAG/Filter → Synthesizer) ──
     compiled_graph = build_graph(
         llm=llm_adapter,
         rag=rag_adapter,
         filter_adapter=filter_adapter,
     )
 
-    # ── Layer 2: Application Services ─────────────────────────
-    guardrails = InputGuardrails(moderation_adapter)
+    # ── Application Services ──────────────────────────────────
+    guardrails = InputGuardrails()
     pipeline = PipelineCoordinator(
         stt=stt_adapter,
         tts=tts_adapter,
@@ -75,8 +72,6 @@ async def lifespan(app: FastAPI):
 
     yield  # ── Application runs here ──
 
-    logger.info("shutdown_begin")
-    # Cleanup would go here (close persistent connections, etc.)
     logger.info("shutdown_complete")
 
 
