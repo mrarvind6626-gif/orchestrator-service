@@ -32,6 +32,14 @@ logger = get_logger(__name__)
 # ── Initialize profanity filter at module load ────────────────────────────────
 profanity.load_censor_words()
 
+# ── Remove false positives from the profanity filter ──────────────────────────
+# better_profanity converts characters (e.g. "10 in" -> "10in" -> "loin")
+# which falsely flags completely valid queries like: "rank is 10. in which..."
+FALSE_POSITIVES = {"loin", "loins"}
+profanity.CENSOR_WORDSET = [
+    w for w in profanity.CENSOR_WORDSET if str(w) not in FALSE_POSITIVES
+]
+
 # ── Pre-compile injection patterns ───────────────────────────────────────────
 _INJECTION_PATTERNS: list[re.Pattern] = [
     re.compile(p, re.IGNORECASE) for p in PROMPT_INJECTION_PATTERNS
