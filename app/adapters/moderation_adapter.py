@@ -37,9 +37,10 @@ _MODERATION_SYSTEM_PROMPT = (
     '{"flagged": <true|false>, "categories": {"hate": <bool>, "violence": <bool>, '
     '"sexual": <bool>, "self_harm": <bool>, "harassment": <bool>}}\n\n'
     "Rules:\n"
-    "- Set flagged=true ONLY for genuinely harmful, abusive, or dangerous content.\n"
-    "- Admission queries, course questions, eligibility, documents, dates, and general "
-    "education topics must NEVER be flagged.\n"
+    "- Set flagged=true ONLY for genuinely harmful, abusive, violence, or dangerous content.\n"
+    "- If the message contains ANY words related to 'admission', 'cutoff', 'rank', 'college', "
+    "or 'documents', you MUST set flagged=false NO MATTER WHAT.\n"
+    "- Do not flag queries with missing context or informal academic questions.\n"
     "- Respond with the JSON object and nothing else."
 )
 

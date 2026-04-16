@@ -45,22 +45,21 @@ FAST_PATH_RESPONSES: dict[str, str] = {
 
 # ── Input Guardrail Patterns (Prompt Injection) ──
 PROMPT_INJECTION_PATTERNS: list[str] = [
-    r"ignore\s+(all\s+)?previous\s+instructions",
-    r"ignore\s+(all\s+)?above\s+instructions",
-    r"disregard\s+(all\s+)?previous",
-    r"you\s+are\s+now\s+",
-    r"act\s+as\s+if\s+you\s+are",
-    r"pretend\s+you\s+are",
-    r"forget\s+(all\s+)?previous",
-    r"new\s+instructions?\s*:",
-    r"system\s*prompt\s*:",
-    r"override\s+.*instructions",
+    r"\bignore\s+(all\s+)?(previous|above)\s+instructions\b",
+    r"\bdisregard\s+(all\s+)?previous\s+(instructions|prompts)\b",
+    r"\byou\s+are\s+now\s+a\s+(large\s+language\s+model|llm|bot|ai)\b",
+    r"\bact\s+as\s+if\s+you\s+are\s+(a\s+different|another|an?\s+ai)\b",
+    r"\bpretend\s+you\s+are\s+(an?\s+)?(ai|expert|human)\b",
+    r"\bforget\s+(all\s+)?previous\s+(instructions|prompts)\b",
+    r"\bnew\s+instructions?\s*:",
+    r"\bsystem\s*prompt\s*:",
+    r"\boverride\s+(all\s+)?(previous\s+)?instructions\b",
     r"\[system\]",
     r"\[inst\]",
     r"<\s*system\s*>",
-    r"do\s+not\s+follow\s+(your\s+)?instructions",
-    r"reveal\s+(your\s+)?(system\s+)?prompt",
-    r"what\s+is\s+your\s+system\s+prompt",
+    r"\bdo\s+not\s+follow\s+(your\s+)?instructions\b",
+    r"\breveal\s+(your\s+)?(system\s+)?prompt\b",
+    r"\bwhat\s+is\s+your\s+system\s+prompt\b",
 ]
 
 # ── Small Talk Detection (Tier 0 — O(1) set lookup) ──────────────────────────
